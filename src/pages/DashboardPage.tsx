@@ -8,6 +8,9 @@ import {
   CheckCircle,
   AlertTriangle,
   TrendingUp,
+  Calendar,
+  ChevronDown,
+  X,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -62,8 +65,8 @@ const StatCard: React.FC<{
                 {change !== undefined && (
                   <div
                     className={`ml-2 flex items-baseline text-sm font-semibold ${change >= 0
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-red-600 dark:text-red-400'
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
                       }`}
                   >
                     <TrendingUp className="flex-shrink-0 self-center h-4 w-4" />
@@ -80,10 +83,82 @@ const StatCard: React.FC<{
 };
 
 export const DashboardPage: React.FC = () => {
+  const [dateRange, setDateRange] = React.useState<{
+    from: string;
+    to: string;
+    label: string;
+  }>({
+    from: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+    to: new Date().toISOString().split('T')[0],
+    label: 'Last 30 Days',
+  });
+
+  const [isFilterOpen, setIsFilterOpen] = React.useState(false);
+  const [isCustomDateModalOpen, setIsCustomDateModalOpen] = React.useState(false);
+  const [customDateFrom, setCustomDateFrom] = React.useState('');
+  const [customDateTo, setCustomDateTo] = React.useState('');
+
+  const handleRangeChange = (range: string) => {
+    const today = new Date();
+    let from = new Date();
+    let to = new Date();
+    let label = '';
+
+    if (range === 'custom') {
+      setIsFilterOpen(false);
+      setIsCustomDateModalOpen(true);
+      return;
+    }
+
+    switch (range) {
+      case '7days':
+        from.setDate(today.getDate() - 7);
+        label = 'Last 7 Days';
+        break;
+      case '30days':
+        from.setDate(today.getDate() - 30);
+        label = 'Last 30 Days';
+        break;
+      case 'thisMonth':
+        from = new Date(today.getFullYear(), today.getMonth(), 1);
+        label = 'This Month';
+        break;
+      case 'lastMonth':
+        from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        to = new Date(today.getFullYear(), today.getMonth(), 0);
+        label = 'Last Month';
+        break;
+      default:
+        from.setDate(today.getDate() - 30);
+        label = 'Last 30 Days';
+    }
+
+    setDateRange({
+      from: from.toISOString().split('T')[0],
+      to: to.toISOString().split('T')[0],
+      label,
+    });
+    setIsFilterOpen(false);
+  };
+
+  const applyCustomDateRange = () => {
+    if (!customDateFrom || !customDateTo) return;
+
+    setDateRange({
+      from: customDateFrom,
+      to: customDateTo,
+      label: `${customDateFrom} - ${customDateTo}`,
+    });
+    setIsCustomDateModalOpen(false);
+  };
+
   const { data: dashboardData, isLoading, error } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
+    queryKey: ['dashboard', dateRange],
     queryFn: async () => {
-      const response = await dashboardApi.getData();
+      const response = await dashboardApi.getData({
+        date_from: dateRange.from,
+        date_to: dateRange.to,
+      });
       return response.data;
     },
     refetchOnMount: 'always', // Always refetch when component mounts
@@ -175,17 +250,143 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Welcome back! Here's what's happening with your business today.
-        </p>
-        {dashboardData.last_updated && (
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-            Last updated: {new Date(dashboardData.last_updated).toLocaleString()}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Welcome back! Here's what's happening with your business.
           </p>
-        )}
+          {dashboardData?.last_updated && (
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+              Last updated: {new Date(dashboardData.last_updated).toLocaleString()}
+            </p>
+          )}
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Calendar className="mr-2 h-4 w-4 text-gray-500 dark:text-gray-400" />
+            {dateRange.label}
+            <ChevronDown className="ml-2 h-4 w-4 text-gray-500 dark:text-gray-400" />
+          </button>
+
+          {isFilterOpen && (
+            <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
+              <div className="py-1" role="menu" aria-orientation="vertical">
+                <button
+                  onClick={() => handleRangeChange('7days')}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  role="menuitem"
+                >
+                  Last 7 Days
+                </button>
+                <button
+                  onClick={() => handleRangeChange('30days')}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  role="menuitem"
+                >
+                  Last 30 Days
+                </button>
+                <button
+                  onClick={() => handleRangeChange('thisMonth')}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  role="menuitem"
+                >
+                  This Month
+                </button>
+                <button
+                  onClick={() => handleRangeChange('lastMonth')}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  role="menuitem"
+                >
+                  Last Month
+                </button>
+                <button
+                  onClick={() => handleRangeChange('custom')}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border-t border-gray-100 dark:border-gray-700"
+                  role="menuitem"
+                >
+                  Custom Range
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Custom Date Range Modal */}
+      {isCustomDateModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
+              &#8203;
+            </span>
+
+            <div className="relative z-10 inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                    Select Date Range
+                  </h3>
+                  <button
+                    onClick={() => setIsCustomDateModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      From
+                    </label>
+                    <input
+                      type="date"
+                      value={customDateFrom}
+                      onChange={(e) => setCustomDateFrom(e.target.value)}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      To
+                    </label>
+                    <input
+                      type="date"
+                      value={customDateTo}
+                      onChange={(e) => setCustomDateTo(e.target.value)}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={applyCustomDateRange}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomDateModalOpen(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

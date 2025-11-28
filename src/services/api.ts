@@ -189,8 +189,8 @@ export const paymentApi = {
 
 // Dashboard API
 export const dashboardApi = {
-    getData: (): Promise<ApiResponse<DashboardData>> =>
-        apiClient.get('/admin/dashboard'),
+    getData: (params?: { date_from?: string; date_to?: string }): Promise<ApiResponse<DashboardData>> =>
+        apiClient.get('/admin/dashboard', params),
 
     getRecentActivity: (limit?: number): Promise<ApiResponse<RecentActivity[]>> =>
         apiClient.get('/admin/dashboard/recent-activity', { limit }),

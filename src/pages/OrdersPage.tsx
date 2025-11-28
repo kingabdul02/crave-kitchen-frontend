@@ -80,23 +80,13 @@ export const OrdersPage: React.FC = () => {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (data: OrderCreateRequest) => orderApi.create(data),
-    onSuccess: async (response) => {
-      // Add the new order to the current page cache
-      queryClient.setQueryData(['orders', currentPage, search, filters], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: [response.data, ...old.data],
-          meta: {
-            ...old.meta,
-            total: old.meta.total + 1,
-          },
-        };
-      });
+    onSuccess: async () => {
+      // Invalidate all order queries to refetch fresh data from backend
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
 
       // Invalidate dashboard to update stats
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
       setIsCreateModalOpen(false);
       addToast({
         type: 'success',
@@ -117,41 +107,13 @@ export const OrdersPage: React.FC = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: OrderCreateRequest }) =>
       orderApi.update(id, data),
-    onMutate: async ({ id, data }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-      
-      // Snapshot the previous value
-      const previousOrders = queryClient.getQueryData(['orders', currentPage, search, filters]);
-      
-      // Optimistically update the order
-      queryClient.setQueryData(['orders', currentPage, search, filters], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: old.data.map((order: Order) =>
-            order.id === id ? { ...order, ...data } : order
-          ),
-        };
-      });
-      
-      return { previousOrders };
-    },
-    onSuccess: async (response, { id }) => {
-      // Update with actual server response
-      queryClient.setQueryData(['orders', currentPage, search, filters], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: old.data.map((order: Order) =>
-            order.id === id ? { ...order, ...response.data } : order
-          ),
-        };
-      });
+    onSuccess: async () => {
+      // Invalidate all order queries to refetch fresh data from backend
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
 
       // Invalidate dashboard to update stats
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
       setIsEditModalOpen(false);
       setSelectedOrder(null);
       addToast({
@@ -160,11 +122,7 @@ export const OrdersPage: React.FC = () => {
         message: 'Order has been updated successfully.',
       });
     },
-    onError: (error: any, _variables, context) => {
-      // Rollback on error
-      if (context?.previousOrders) {
-        queryClient.setQueryData(['orders', currentPage, search, filters], context.previousOrders);
-      }
+    onError: (error: any) => {
       addToast({
         type: 'error',
         title: 'Error',
@@ -177,46 +135,13 @@ export const OrdersPage: React.FC = () => {
   const updateSettlementMutation = useMutation({
     mutationFn: ({ id, is_settled }: { id: number; is_settled: boolean }) =>
       orderApi.updateSettled(id, { is_settled }),
-    onMutate: async ({ id, is_settled }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-      
-      // Snapshot the previous values
-      const previousOrders = queryClient.getQueryData(['orders', currentPage, search, filters]);
-      
-      // Optimistically update the settlement status
-      queryClient.setQueryData(['orders', currentPage, search, filters], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: old.data.map((order: Order) =>
-            order.id === id ? { ...order, is_settled } : order
-          ),
-        };
-      });
+    onSuccess: async () => {
+      // Invalidate all order queries to refetch fresh data from backend
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
 
-      // Also update the selected order if it's the one being updated
-      if (selectedOrder?.id === id) {
-        setSelectedOrder({ ...selectedOrder, is_settled });
-      }
-      
-      return { previousOrders };
-    },
-    onSuccess: async (data, { id }) => {
-      // Update the cache with the actual server response data
-      queryClient.setQueryData(['orders', currentPage, search, filters], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: old.data.map((order: Order) =>
-            order.id === id ? { ...order, ...data.data } : order
-          ),
-        };
-      });
+      // Invalidate dashboard to update stats
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 
-      // Invalidate dashboard to update stats without refetching orders
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      
       setIsSettlementDialogOpen(false);
       setSelectedOrder(null);
       addToast({
@@ -225,20 +150,12 @@ export const OrdersPage: React.FC = () => {
         message: 'Order settlement status has been updated successfully.',
       });
     },
-    onError: (error: any, _variables, context) => {
-      // Rollback on error
-      if (context?.previousOrders) {
-        queryClient.setQueryData(['orders', currentPage, search, filters], context.previousOrders);
-      }
+    onError: (error: any) => {
       addToast({
         type: 'error',
         title: 'Error',
         message: error.message || 'Failed to update settlement status.',
       });
-    },
-    onSettled: () => {
-      // Re-enable refetching
-      queryClient.cancelQueries({ queryKey: ['orders'] });
     },
   });
 
@@ -246,46 +163,13 @@ export const OrdersPage: React.FC = () => {
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status, notes }: { id: number; status: OrderStatus; notes?: string }) =>
       orderApi.updateStatus(id, { status, notes }),
-    onMutate: async ({ id, status }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-      
-      // Snapshot the previous values
-      const previousOrders = queryClient.getQueryData(['orders', currentPage, search, filters]);
-      
-      // Optimistically update the order status in the current query
-      queryClient.setQueryData(['orders', currentPage, search, filters], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: old.data.map((order: Order) =>
-            order.id === id ? { ...order, status } : order
-          ),
-        };
-      });
+    onSuccess: async () => {
+      // Invalidate all order queries to refetch fresh data from backend
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
 
-      // Also update the selected order if it's the one being updated
-      if (selectedOrder?.id === id) {
-        setSelectedOrder({ ...selectedOrder, status });
-      }
-      
-      return { previousOrders };
-    },
-    onSuccess: async (data, { id }) => {
-      // Update the cache with the actual server response data
-      queryClient.setQueryData(['orders', currentPage, search, filters], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: old.data.map((order: Order) =>
-            order.id === id ? { ...order, ...data.data } : order
-          ),
-        };
-      });
+      // Invalidate dashboard to update stats
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 
-      // Invalidate dashboard to update stats without refetching orders
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      
       setIsStatusDialogOpen(false);
       setSelectedOrder(null);
       addToast({
@@ -294,52 +178,25 @@ export const OrdersPage: React.FC = () => {
         message: 'Order status has been updated successfully.',
       });
     },
-    onError: (error: any, _variables, context) => {
-      // Rollback on error
-      if (context?.previousOrders) {
-        queryClient.setQueryData(['orders', currentPage, search, filters], context.previousOrders);
-      }
+    onError: (error: any) => {
       addToast({
         type: 'error',
         title: 'Error',
         message: error.message || 'Failed to update order status.',
       });
     },
-    onSettled: () => {
-      // Re-enable refetching
-      queryClient.cancelQueries({ queryKey: ['orders'] });
-    },
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: number) => orderApi.delete(id),
-    onMutate: async (id) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-      
-      // Snapshot the previous value
-      const previousOrders = queryClient.getQueryData(['orders', currentPage, search, filters]);
-      
-      // Optimistically remove the order
-      queryClient.setQueryData(['orders', currentPage, search, filters], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: old.data.filter((order: Order) => order.id !== id),
-          meta: {
-            ...old.meta,
-            total: old.meta.total - 1,
-          },
-        };
-      });
-      
-      return { previousOrders };
-    },
     onSuccess: async () => {
+      // Invalidate all order queries to refetch fresh data from backend
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+
       // Invalidate dashboard to update stats
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
       setIsDeleteDialogOpen(false);
       setSelectedOrder(null);
       addToast({
@@ -348,11 +205,7 @@ export const OrdersPage: React.FC = () => {
         message: 'Order has been deleted successfully.',
       });
     },
-    onError: (error: any, _variables, context) => {
-      // Rollback on error
-      if (context?.previousOrders) {
-        queryClient.setQueryData(['orders', currentPage, search, filters], context.previousOrders);
-      }
+    onError: (error: any) => {
       addToast({
         type: 'error',
         title: 'Error',
@@ -511,11 +364,10 @@ export const OrdersPage: React.FC = () => {
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex items-center px-4 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              hasActiveFilters
-                ? 'border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
-                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-            }`}
+            className={`inline-flex items-center px-4 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${hasActiveFilters
+              ? 'border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
+              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+              }`}
           >
             <Filter className="h-4 w-4 mr-2" />
             Filters
@@ -788,11 +640,10 @@ export const OrdersPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            order.is_settled
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.is_settled
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                            }`}
                         >
                           {order.is_settled ? 'Settled' : 'Unsettled'}
                         </span>
@@ -941,11 +792,10 @@ export const OrdersPage: React.FC = () => {
                             )}
                             <button
                               onClick={() => setCurrentPage(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                currentPage === page
-                                  ? 'z-10 bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400'
-                                  : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600'
-                              }`}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === page
+                                ? 'z-10 bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400'
+                                : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600'
+                                }`}
                             >
                               {page}
                             </button>

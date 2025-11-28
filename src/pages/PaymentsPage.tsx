@@ -55,7 +55,7 @@ export const PaymentsPage: React.FC = () => {
         sort_by: 'created_at',
         sort_order: 'desc',
       });
-      
+
       // Extract all payments from orders
       const allPayments: Payment[] = [];
       for (const order of response.data) {
@@ -128,6 +128,7 @@ export const PaymentsPage: React.FC = () => {
       return filteredPayments;
     },
     staleTime: 0,
+    gcTime: 0, // Don't cache payment data
     refetchOnMount: 'always',
   });
 
@@ -135,19 +136,11 @@ export const PaymentsPage: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: ({ orderId, data }: { orderId: number; data: PaymentCreateRequest }) =>
       paymentApi.create(orderId, data),
-    onSuccess: async (response) => {
-      // Optimistically add the new payment to the cache
-      queryClient.setQueryData(
-        ['orders-with-payments', currentPage, search, filters],
-        (old: any) => {
-          if (!old) return [response.data];
-          return [response.data, ...old];
-        }
-      );
-
-      // Invalidate related queries without refetching payments
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async () => {
+      // Invalidate all payment and order queries to refetch fresh data
+      await queryClient.invalidateQueries({ queryKey: ['orders-with-payments'] });
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 
       setIsCreateModalOpen(false);
       addToast({
@@ -176,51 +169,11 @@ export const PaymentsPage: React.FC = () => {
       paymentId: number;
       data: PaymentCreateRequest;
     }) => paymentApi.update(orderId, paymentId, data),
-    onMutate: async ({ paymentId, data }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['orders-with-payments'] });
-
-      // Snapshot the previous value
-      const previousPayments = queryClient.getQueryData([
-        'orders-with-payments',
-        currentPage,
-        search,
-        filters,
-      ]);
-
-      // Optimistically update the payment
-      queryClient.setQueryData(
-        ['orders-with-payments', currentPage, search, filters],
-        (old: any) => {
-          if (!old) return old;
-          return old.map((payment: Payment) =>
-            payment.id === paymentId ? { ...payment, ...data } : payment
-          );
-        }
-      );
-
-      // Update selected payment if it's the one being edited
-      if (selectedPayment?.id === paymentId) {
-        setSelectedPayment({ ...selectedPayment, ...data });
-      }
-
-      return { previousPayments };
-    },
-    onSuccess: async (response, { paymentId }) => {
-      // Update with actual server response
-      queryClient.setQueryData(
-        ['orders-with-payments', currentPage, search, filters],
-        (old: any) => {
-          if (!old) return old;
-          return old.map((payment: Payment) =>
-            payment.id === paymentId ? { ...payment, ...response.data } : payment
-          );
-        }
-      );
-
-      // Invalidate related queries without refetching payments
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async () => {
+      // Invalidate all payment and order queries to refetch fresh data
+      await queryClient.invalidateQueries({ queryKey: ['orders-with-payments'] });
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 
       setIsEditModalOpen(false);
       setSelectedPayment(null);
@@ -230,14 +183,7 @@ export const PaymentsPage: React.FC = () => {
         message: 'Payment has been updated successfully.',
       });
     },
-    onError: (error: any, _variables, context) => {
-      // Rollback on error
-      if (context?.previousPayments) {
-        queryClient.setQueryData(
-          ['orders-with-payments', currentPage, search, filters],
-          context.previousPayments
-        );
-      }
+    onError: (error: any) => {
       addToast({
         type: 'error',
         title: 'Error',
@@ -250,33 +196,11 @@ export const PaymentsPage: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: ({ orderId, paymentId }: { orderId: number; paymentId: number }) =>
       paymentApi.delete(orderId, paymentId),
-    onMutate: async ({ paymentId }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['orders-with-payments'] });
-
-      // Snapshot the previous value
-      const previousPayments = queryClient.getQueryData([
-        'orders-with-payments',
-        currentPage,
-        search,
-        filters,
-      ]);
-
-      // Optimistically remove the payment
-      queryClient.setQueryData(
-        ['orders-with-payments', currentPage, search, filters],
-        (old: any) => {
-          if (!old) return old;
-          return old.filter((payment: Payment) => payment.id !== paymentId);
-        }
-      );
-
-      return { previousPayments };
-    },
     onSuccess: async () => {
-      // Invalidate related queries without refetching payments
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      // Invalidate all payment and order queries to refetch fresh data
+      await queryClient.invalidateQueries({ queryKey: ['orders-with-payments'] });
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 
       setIsDeleteDialogOpen(false);
       setSelectedPayment(null);
@@ -286,14 +210,7 @@ export const PaymentsPage: React.FC = () => {
         message: 'Payment has been deleted successfully.',
       });
     },
-    onError: (error: any, _variables, context) => {
-      // Rollback on error
-      if (context?.previousPayments) {
-        queryClient.setQueryData(
-          ['orders-with-payments', currentPage, search, filters],
-          context.previousPayments
-        );
-      }
+    onError: (error: any) => {
       addToast({
         type: 'error',
         title: 'Error',
@@ -379,13 +296,13 @@ export const PaymentsPage: React.FC = () => {
   // Calculate statistics
   const stats = data
     ? {
-        total: data.length,
-        totalAmount: data.reduce((sum, p) => sum + Number(p.amount), 0),
-        byMethod: data.reduce((acc, p) => {
-          acc[p.payment_method] = (acc[p.payment_method] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-      }
+      total: data.length,
+      totalAmount: data.reduce((sum, p) => sum + Number(p.amount), 0),
+      byMethod: data.reduce((acc, p) => {
+        acc[p.payment_method] = (acc[p.payment_method] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+    }
     : { total: 0, totalAmount: 0, byMethod: {} };
 
   return (
@@ -470,8 +387,8 @@ export const PaymentsPage: React.FC = () => {
                 <p className="text-lg font-semibold text-gray-900 dark:text-white">
                   {Object.keys(stats.byMethod).length > 0
                     ? getPaymentMethodLabel(
-                        Object.entries(stats.byMethod).sort((a, b) => b[1] - a[1])[0][0]
-                      )
+                      Object.entries(stats.byMethod).sort((a, b) => b[1] - a[1])[0][0]
+                    )
                     : 'N/A'}
                 </p>
               </div>
@@ -503,11 +420,10 @@ export const PaymentsPage: React.FC = () => {
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex items-center px-4 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              hasActiveFilters
-                ? 'border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
-                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-            }`}
+            className={`inline-flex items-center px-4 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${hasActiveFilters
+              ? 'border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
+              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+              }`}
           >
             <Filter className="h-4 w-4 mr-2" />
             Filters
@@ -835,9 +751,8 @@ export const PaymentsPage: React.FC = () => {
         }}
         onConfirm={handleDeleteConfirm}
         title="Delete Payment"
-        message={`Are you sure you want to delete this payment of ₦${
-          selectedPayment ? Number(selectedPayment.amount).toFixed(2) : '0.00'
-        }? This action cannot be undone.`}
+        message={`Are you sure you want to delete this payment of ₦${selectedPayment ? Number(selectedPayment.amount).toFixed(2) : '0.00'
+          }? This action cannot be undone.`}
         confirmText="Delete"
         type="danger"
         isLoading={deleteMutation.isPending}

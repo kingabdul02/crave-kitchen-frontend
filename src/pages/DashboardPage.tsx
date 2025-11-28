@@ -61,11 +61,10 @@ const StatCard: React.FC<{
                 </div>
                 {change !== undefined && (
                   <div
-                    className={`ml-2 flex items-baseline text-sm font-semibold ${
-                      change >= 0
+                    className={`ml-2 flex items-baseline text-sm font-semibold ${change >= 0
                         ? 'text-green-600 dark:text-green-400'
                         : 'text-red-600 dark:text-red-400'
-                    }`}
+                      }`}
                   >
                     <TrendingUp className="flex-shrink-0 self-center h-4 w-4" />
                     {Math.abs(change)}%
@@ -88,7 +87,8 @@ export const DashboardPage: React.FC = () => {
       return response.data;
     },
     refetchOnMount: 'always', // Always refetch when component mounts
-    staleTime: 1000 * 5* 60, // Consider data stale immediately
+    staleTime: 0, // Consider data stale immediately
+    gcTime: 0, // Don't cache dashboard data
   });
 
   if (isLoading) {
@@ -121,7 +121,7 @@ export const DashboardPage: React.FC = () => {
     return null;
   }
 
-  const { 
+  const {
     current_period = {
       orders: { total: 0, pending: 0, processed: 0, completed: 0, cancelled: 0 },
       revenue: { total: 0, paid: 0, pending: 0, settled: 0, unsettled: 0, average_order_value: 0 },
@@ -156,7 +156,7 @@ export const DashboardPage: React.FC = () => {
     completed: current_period.orders.completed,
     cancelled: current_period.orders.cancelled,
   };
-  
+
   const pieData = Object.entries(orderStatusData).map(([status, count]) => ({
     name: status.charAt(0).toUpperCase() + status.slice(1),
     value: count,
@@ -278,17 +278,17 @@ export const DashboardPage: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={revenueChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
+                  <XAxis
+                    dataKey="date"
                     tick={{ fontSize: 12 }}
                     className="text-gray-600 dark:text-gray-400"
                   />
-                  <YAxis 
+                  <YAxis
                     tick={{ fontSize: 12 }}
                     className="text-gray-600 dark:text-gray-400"
                     domain={[0, dataMax => dataMax > 0 ? dataMax : 100]}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{
                       backgroundColor: 'var(--tooltip-bg)',
                       border: '1px solid var(--tooltip-border)',

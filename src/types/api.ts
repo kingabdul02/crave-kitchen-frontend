@@ -336,8 +336,10 @@ export interface OrderFilters extends Record<string, unknown> {
     customer_id?: number;
     min_amount?: number;
     max_amount?: number;
-    from_date?: string;
-    to_date?: string;
+    from_date?: string; // Deprecated
+    to_date?: string; // Deprecated
+    date_from?: string;
+    date_to?: string;
     sort_by?: 'order_number' | 'total_amount' | 'created_at' | 'status';
     sort_order?: 'asc' | 'desc';
 }

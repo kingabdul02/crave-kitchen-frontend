@@ -135,8 +135,8 @@ export const orderApi = {
     getSummary: (params?: {
         period?: 'day' | 'week' | 'month' | 'year';
         status?: string;
-        from_date?: string;
-        to_date?: string;
+        date_from?: string;
+        date_to?: string;
     }): Promise<ApiResponse<OrderSummary>> =>
         apiClient.get('/admin/orders-summary', params),
 

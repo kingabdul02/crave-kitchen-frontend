@@ -46,7 +46,8 @@ export const ReportsPage: React.FC = () => {
 
     switch (dateRange) {
       case 'today':
-        from = to = today;
+        from = new Date();
+        to = new Date();
         break;
       case 'week':
         from = new Date(today.setDate(today.getDate() - 7));
@@ -58,12 +59,12 @@ export const ReportsPage: React.FC = () => {
         from = new Date(today.setFullYear(today.getFullYear() - 1));
         break;
       case 'custom':
-        return { from_date: fromDate, to_date: toDate };
+        return { date_from: fromDate, date_to: toDate };
     }
 
     return {
-      from_date: from.toISOString().split('T')[0],
-      to_date: to.toISOString().split('T')[0],
+      date_from: from.toISOString().split('T')[0],
+      date_to: to.toISOString().split('T')[0],
     };
   };
 
@@ -75,8 +76,8 @@ export const ReportsPage: React.FC = () => {
     queryFn: async () => {
       const response = await orderApi.getAll({
         per_page: 1000,
-        from_date: dates.from_date,
-        to_date: dates.to_date,
+        date_from: dates.date_from,
+        date_to: dates.date_to,
         sort_by: 'created_at',
         sort_order: 'asc',
       });
@@ -89,8 +90,8 @@ export const ReportsPage: React.FC = () => {
     queryKey: ['orders-summary', dates],
     queryFn: async () => {
       const response = await orderApi.getSummary({
-        from_date: dates.from_date,
-        to_date: dates.to_date,
+        date_from: dates.date_from,
+        date_to: dates.date_to,
       });
       return response.data;
     },
@@ -102,8 +103,8 @@ export const ReportsPage: React.FC = () => {
     queryFn: async () => {
       const response = await customerApi.getAll({
         per_page: 1000,
-        created_from: dates.from_date,
-        created_to: dates.to_date,
+        created_from: dates.date_from,
+        created_to: dates.date_to,
       });
       return response.data;
     },
@@ -666,11 +667,11 @@ export const ReportsPage: React.FC = () => {
                     $
                     {customersData && customersData.length > 0
                       ? (
-                          customersData.reduce(
-                            (sum: number, c: any) => sum + Number(c.total_spent || 0),
-                            0
-                          ) / customersData.length
-                        ).toFixed(2)
+                        customersData.reduce(
+                          (sum: number, c: any) => sum + Number(c.total_spent || 0),
+                          0
+                        ) / customersData.length
+                      ).toFixed(2)
                       : '0.00'}
                   </p>
                 </div>

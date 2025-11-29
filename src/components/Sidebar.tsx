@@ -23,9 +23,14 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  className?: string;
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ className, onClose }) => {
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col">
+    <div className={cn("hidden md:flex md:w-64 md:flex-col", className)}>
       <div className="flex flex-col flex-grow pt-5 bg-white dark:bg-gray-800 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
         <div className="flex items-center flex-shrink-0 px-4">
           <div className="flex items-center">
@@ -48,6 +53,7 @@ export const Sidebar: React.FC = () => {
               <NavLink
                 key={item.name}
                 to={item.href}
+                onClick={onClose}
                 className={({ isActive }) =>
                   cn(
                     "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",

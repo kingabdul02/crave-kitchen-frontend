@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import { Sidebar } from './Sidebar';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
@@ -149,7 +150,7 @@ export const Header: React.FC = () => {
       {showMobileMenu && (
         <div className="md:hidden fixed inset-0 z-40 bg-gray-600 bg-opacity-75">
           <div className="fixed inset-y-0 left-0 flex flex-col w-64 bg-white dark:bg-gray-800">
-            {/* Mobile sidebar content would go here */}
+            <Sidebar className="flex h-full w-full" onClose={() => setShowMobileMenu(false)} />
           </div>
         </div>
       )}

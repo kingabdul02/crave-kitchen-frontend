@@ -32,7 +32,7 @@ export const authApi = {
     login: (data: LoginRequest): Promise<LoginResponse> =>
         apiClient.post('/auth/login', data),
 
-    getCurrentUser: (): Promise<ApiResponse<User>> =>
+    getCurrentUser: (): Promise<ApiResponse<{ user: User }>> =>
         apiClient.get('/auth/me'),
 
     logout: (): Promise<ApiResponse<{ message: string }>> =>
@@ -40,6 +40,15 @@ export const authApi = {
 
     getUser: (): Promise<User> =>
         apiClient.get('/user'),
+};
+
+// User API
+export const userApi = {
+    updateProfile: (data: { name: string; email: string }): Promise<ApiResponse<{ user: User }>> =>
+        apiClient.put('/profile', data),
+
+    updatePassword: (data: { current_password: string; password: string; password_confirmation: string }): Promise<ApiResponse<{ message: string }>> =>
+        apiClient.put('/profile/password', data),
 };
 
 // Customer API

@@ -28,7 +28,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Try to get current user info
       const response = await authApi.getCurrentUser();
-      setUser(response.data);
+      setUser(response.data.user);
     } catch {
       // Token is invalid, clear it
       apiClient.clearAuthToken();
@@ -39,10 +39,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login({ email, password });
-    
+
     if (response.success) {
       const { user: userData, token } = response.data;
-      
+
       // Store token and user data
       apiClient.setAuthToken(token);
       localStorage.setItem('user', JSON.stringify(userData));

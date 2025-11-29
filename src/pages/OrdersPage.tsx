@@ -13,10 +13,12 @@ import {
   Edit,
   CheckCircle,
   MoreVertical,
+  CreditCard,
 } from 'lucide-react';
-import { orderApi } from '../services/api';
-import type { Order, OrderCreateRequest, OrderFilters, OrderStatus } from '../types/api';
+import { orderApi, paymentApi } from '../services/api';
+import type { Order, OrderCreateRequest, OrderFilters, OrderStatus, PaymentCreateRequest } from '../types/api';
 import { OrderModal } from '../components/OrderModal';
+import { PaymentModal } from '../components/PaymentModal';
 import { OrderDetailsModal } from '../components/OrderDetailsModal';
 import { OrderStatusDialog } from '../components/OrderStatusDialog';
 import { OrderSettlementDialog } from '../components/OrderSettlementDialog';
@@ -59,6 +61,8 @@ export const OrdersPage: React.FC = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<Order | null>(null);
 
   // Fetch orders
   const { data, isLoading, error } = useQuery({
@@ -214,6 +218,32 @@ export const OrdersPage: React.FC = () => {
     },
   });
 
+  // Create payment mutation
+  const createPaymentMutation = useMutation({
+    mutationFn: ({ orderId, data }: { orderId: number; data: PaymentCreateRequest }) =>
+      paymentApi.create(orderId, data),
+    onSuccess: async () => {
+      // Invalidate all order queries to refetch fresh data from backend
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
+      setIsPaymentModalOpen(false);
+      setSelectedOrderForPayment(null);
+      addToast({
+        type: 'success',
+        title: 'Payment Recorded',
+        message: 'Payment has been recorded successfully.',
+      });
+    },
+    onError: (error: any) => {
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'Failed to record payment.',
+      });
+    },
+  });
+
   // Handlers
   const handleCreateSubmit = (data: OrderCreateRequest) => {
     createMutation.mutate(data);
@@ -266,6 +296,15 @@ export const OrdersPage: React.FC = () => {
   const handleDelete = (order: Order) => {
     setSelectedOrder(order);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleRecordPayment = (order: Order) => {
+    setSelectedOrderForPayment(order);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentSubmit = (orderId: number, data: PaymentCreateRequest) => {
+    createPaymentMutation.mutate({ orderId, data });
   };
 
   const handleFilterChange = (key: keyof OrderFilters, value: any) => {
@@ -701,6 +740,20 @@ export const OrdersPage: React.FC = () => {
                                   <CheckCircle className="h-4 w-4 mr-3 text-purple-500" />
                                   Update Settlement
                                 </button>
+                                {order.payment_status !== 'paid' &&
+                                  order.payment_status !== 'refunded' && (
+                                    <button
+                                      onClick={() => {
+                                        handleRecordPayment(order);
+                                        setOpenDropdownId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center"
+                                      role="menuitem"
+                                    >
+                                      <CreditCard className="h-4 w-4 mr-3 text-indigo-500" />
+                                      Record Payment
+                                    </button>
+                                  )}
                                 <button
                                   onClick={() => {
                                     handleEdit(order);
@@ -881,11 +934,24 @@ export const OrdersPage: React.FC = () => {
         }}
         onConfirm={handleDeleteConfirm}
         title="Delete Order"
-        message={`Are you sure you want to delete order "${selectedOrder?.order_number}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete order #${selectedOrder?.order_number}? This action cannot be undone.`}
         confirmText="Delete"
         type="danger"
         isLoading={deleteMutation.isPending}
       />
+
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => {
+          setIsPaymentModalOpen(false);
+          setSelectedOrderForPayment(null);
+        }}
+        onSubmit={handlePaymentSubmit}
+        orderId={selectedOrderForPayment?.id}
+        isLoading={createPaymentMutation.isPending}
+        error={createPaymentMutation.error?.message}
+      />
     </div>
   );
 };
+

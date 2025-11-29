@@ -15,6 +15,7 @@ import { PaymentsPage } from './pages/PaymentsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -37,27 +38,28 @@ function App() {
           <ToastProvider>
             <Router>
               <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route
-                  path="/*"
-                  element={
-                    <ProtectedRoute>
-                      <Layout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="customers" element={<CustomersPage />} />
-                  <Route path="items" element={<ItemsPage />} />
-                  <Route path="orders" element={<OrdersPage />} />
-                  <Route path="payments" element={<PaymentsPage />} />
-                  <Route path="reports" element={<ReportsPage />} />
-                  <Route path="search" element={<SearchPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="" element={<Navigate to="/dashboard" replace />} />
-                </Route>
-              </Routes>
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route path="dashboard" element={<DashboardPage />} />
+                    <Route path="customers" element={<CustomersPage />} />
+                    <Route path="items" element={<ItemsPage />} />
+                    <Route path="orders" element={<OrdersPage />} />
+                    <Route path="payments" element={<PaymentsPage />} />
+                    <Route path="reports" element={<ReportsPage />} />
+                    <Route path="search" element={<SearchPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                    <Route path="" element={<Navigate to="/dashboard" replace />} />
+                  </Route>
+                </Routes>
               </div>
             </Router>
           </ToastProvider>

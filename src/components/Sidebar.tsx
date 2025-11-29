@@ -9,6 +9,7 @@ import {
   Search,
   BarChart3,
   Settings,
+  User,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Search", href: "/search", icon: Search },
   { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Profile", href: "/profile", icon: User },
 ];
 
 interface SidebarProps {
